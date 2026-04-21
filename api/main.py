@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Constantes
 # ---------------------------------------------------------------------------
-MODEL_PATH = os.getenv("MODEL_PATH", "api/model/mnist_cnn.h5")
+MODEL_PATH = os.getenv("MODEL_PATH", "model/mnist_cnn.h5")
 TARGET_SIZE = (28, 28)
 NUM_CLASSES = 10
 
