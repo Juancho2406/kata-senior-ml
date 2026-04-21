@@ -44,6 +44,8 @@ jobs:
       model_bucket: ${{ steps.tfout.outputs.model_bucket }}
       lambda_name: ${{ steps.tfout.outputs.lambda_name }}
       api_url: ${{ steps.tfout.outputs.api_url }}
+      frontend_cloudfront_domain: ${{ steps.tfout.outputs.frontend_cloudfront_domain }}
+      frontend_cloudfront_distribution_id: ${{ steps.tfout.outputs.frontend_cloudfront_distribution_id }}
       ecr_registry: ${{ steps.meta.outputs.ecr_registry }}
       ecr_repository: ${{ steps.meta.outputs.ecr_repository }}
     steps:
@@ -161,6 +163,8 @@ jobs:
           echo "model_bucket=$(terraform output -raw model_bucket_name)" >> "$GITHUB_OUTPUT"
           echo "lambda_name=$(terraform output -raw lambda_function_name)" >> "$GITHUB_OUTPUT"
           echo "api_url=$(terraform output -raw api_url)" >> "$GITHUB_OUTPUT"
+          echo "frontend_cloudfront_domain=$(terraform output -raw frontend_cloudfront_domain)" >> "$GITHUB_OUTPUT"
+          echo "frontend_cloudfront_distribution_id=$(terraform output -raw frontend_cloudfront_distribution_id)" >> "$GITHUB_OUTPUT"
 
   deploy_api:
     name: Deploy API image to Lambda
@@ -239,3 +243,13 @@ jobs:
       - name: Sync built frontend assets
         run: |
           aws s3 sync frontend/dist/ "s3://${{ needs.deploy_iac.outputs.frontend_bucket }}" --delete
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ needs.deploy_iac.outputs.frontend_cloudfront_distribution_id }}" \
+            --paths "/*"
+
+      - name: Show frontend URL
+        run: |
+          echo "Frontend URL: https://${{ needs.deploy_iac.outputs.frontend_cloudfront_domain }}"

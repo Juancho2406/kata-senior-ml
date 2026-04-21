@@ -5,7 +5,7 @@ Kata técnica de Machine Learning Senior para clasificación de dígitos MNIST.
 ## Stack actual
 - **API:** FastAPI + TensorFlow (`api/main.py`)
 - **Frontend:** React + Vite (`frontend/src/App.jsx`)
-- **Infraestructura:** Terraform para Lambda + API Gateway + S3 (`infra/lambda`)
+- **Infraestructura:** Terraform para Lambda + API Gateway + S3 + CloudFront (`infra/lambda`)
 - **CI/CD:** GitHub Actions con flujo secuencial IaC -> API -> Frontend (`.github/workflows/deploy.yml`)
 
 ## Estructura principal
@@ -119,7 +119,8 @@ Esto asegura que frontend y API no se despliegan antes de tener infraestructura.
 - `AWS_REGION` (ejemplo: `us-east-1`)
 
 ### Qué crea `deploy_iac`
-- Bucket S3 para frontend (website hosting)
+- Bucket S3 privado para frontend
+- Distribución CloudFront HTTPS para frontend (sin dominio custom)
 - Bucket S3 para modelos
 - Repositorio ECR del API
 - Bucket S3 para Terraform state remoto

@@ -13,9 +13,14 @@ output "frontend_bucket_name" {
   value       = aws_s3_bucket.artifacts.id
 }
 
-output "frontend_website_url" {
-  description = "URL del website hosting de S3 para frontend"
-  value       = aws_s3_bucket_website_configuration.frontend_website.website_endpoint
+output "frontend_cloudfront_domain" {
+  description = "Dominio HTTPS de CloudFront para el frontend"
+  value       = aws_cloudfront_distribution.frontend_cdn.domain_name
+}
+
+output "frontend_cloudfront_distribution_id" {
+  description = "ID de la distribucion CloudFront del frontend"
+  value       = aws_cloudfront_distribution.frontend_cdn.id
 }
 
 output "model_bucket_name" {
