@@ -18,15 +18,6 @@ const VIEW_LABELS = {
   camera: "Camara",
 };
 
-function getRandomUniqueIndices(count, maxExclusive) {
-  const target = Math.min(Math.max(count, 1), maxExclusive);
-  const selected = new Set();
-  while (selected.size < target) {
-    selected.add(Math.floor(Math.random() * maxExclusive));
-  }
-  return Array.from(selected);
-}
-
 function App() {
   const fileInputRef = useRef(null);
   const videoRef = useRef(null);
@@ -360,26 +351,15 @@ function App() {
       updateStatus(`Analizando ${parsedBatchSize} imagenes de prueba MNIST...`);
       setGradcamBase64(null);
 
-      const indices = getRandomUniqueIndices(parsedBatchSize, 10000);
-      const rows = await Promise.all(
-        indices.map(async (index) => {
-          const sample = await getJson(`/sample-mnist?index=${index}`);
-          const prediction = await postJson("/predict-preprocessed", {
-            image: sample.image,
-          });
-          const confidence = Number(prediction.confidence) * 100;
-          const predictedDigit = Number(prediction.predicted_digit);
-          const expectedDigit = Number(sample.label);
-          return {
-            index,
-            image: sample.image,
-            expected: expectedDigit,
-            predicted: predictedDigit,
-            confidence,
-            correct: predictedDigit === expectedDigit,
-          };
-        })
-      );
+      const batch = await getJson(`/sample-mnist-batch?size=${parsedBatchSize}`);
+      const rows = (batch.items || []).map((item) => ({
+        index: Number(item.index),
+        image: item.image,
+        expected: Number(item.label),
+        predicted: Number(item.predicted_digit),
+        confidence: Number(item.confidence) * 100,
+        correct: Boolean(item.correct),
+      }));
 
       const correct = rows.filter((item) => item.correct).length;
       const total = rows.length;

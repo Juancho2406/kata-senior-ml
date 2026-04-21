@@ -7,6 +7,7 @@ import base64
 import io
 import logging
 import os
+import threading
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Dict
@@ -167,6 +168,23 @@ class MnistSampleResponse(BaseModel):
     index: int
 
 
+class MnistBatchItemResponse(BaseModel):
+    index: int
+    image: str
+    label: int
+    predicted_digit: int
+    confidence: float
+    correct: bool
+
+
+class MnistBatchResponse(BaseModel):
+    items: list[MnistBatchItemResponse]
+    total: int
+    correct: int
+    incorrect: int
+    accuracy: float
+
+
 # ---------------------------------------------------------------------------
 # Utilidades de preprocesamiento
 # ---------------------------------------------------------------------------
@@ -283,6 +301,35 @@ def mnist_image_to_base64(arr_2d: np.ndarray) -> str:
     buffer = io.BytesIO()
     img.save(buffer, format="PNG")
     return base64.b64encode(buffer.getvalue()).decode("utf-8")
+
+
+_mnist_lock = threading.Lock()
+
+
+def _ensure_mnist_loaded() -> tuple[np.ndarray, np.ndarray]:
+    """
+    Carga MNIST una sola vez por runtime y evita cargas concurrentes.
+    """
+    global mnist_test_images, mnist_test_labels
+
+    if mnist_test_images is not None and mnist_test_labels is not None:
+        return mnist_test_images, mnist_test_labels
+
+    with _mnist_lock:
+        if mnist_test_images is not None and mnist_test_labels is not None:
+            return mnist_test_images, mnist_test_labels
+        try:
+            (_, _), (mnist_test_images, mnist_test_labels) = mnist.load_data()
+        except Exception as exc:
+            logger.error("No se pudo cargar MNIST: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=(
+                    "No se pudo cargar el dataset MNIST en este entorno. "
+                    "Verifica conectividad o cache local de Keras."
+                ),
+            ) from exc
+        return mnist_test_images, mnist_test_labels
 
 
 def _find_last_conv2d_layer_name(model: keras.Model) -> str | None:
@@ -464,33 +511,80 @@ def save_labeled_image(request: SaveLabeledImageRequest):
     summary="Obtiene una imagen de ejemplo del test set MNIST",
 )
 def sample_mnist(index: int = 0):
-    global mnist_test_images, mnist_test_labels
-    if mnist_test_images is None or mnist_test_labels is None:
-        try:
-            (_, _), (mnist_test_images, mnist_test_labels) = mnist.load_data()
-        except Exception as exc:
-            logger.error("No se pudo cargar MNIST para /sample-mnist: %s", exc)
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail=(
-                    "No se pudo cargar el dataset MNIST en este entorno. "
-                    "Verifica conectividad o cache local de Keras."
-                ),
-            ) from exc
+    mnist_images, mnist_labels = _ensure_mnist_loaded()
 
-    if index < 0 or index >= len(mnist_test_images):
+    if index < 0 or index >= len(mnist_images):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=(
                 "index fuera de rango. Debe estar entre 0 y "
-                f"{len(mnist_test_images)-1}."
+                f"{len(mnist_images)-1}."
             ),
         )
-    img_b64 = mnist_image_to_base64(mnist_test_images[index])
+    img_b64 = mnist_image_to_base64(mnist_images[index])
     return MnistSampleResponse(
         image=img_b64,
-        label=int(mnist_test_labels[index]),
+        label=int(mnist_labels[index]),
         index=index,
+    )
+
+
+@app.get(
+    "/sample-mnist-batch",
+    response_model=MnistBatchResponse,
+    status_code=status.HTTP_200_OK,
+    tags=["Dataset"],
+    summary="Evalua un lote de imagenes del test set MNIST",
+)
+def sample_mnist_batch(size: int = 32):
+    if ml_model is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="El modelo no está disponible.",
+        )
+    if size < 1 or size > 128:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="size debe estar entre 1 y 128.",
+        )
+
+    mnist_images, mnist_labels = _ensure_mnist_loaded()
+    max_items = len(mnist_images)
+    sample_size = min(size, max_items)
+    indices = np.random.choice(max_items, size=sample_size, replace=False)
+
+    tensors = (
+        mnist_images[indices].astype("float32") / 255.0
+    )[..., np.newaxis]
+    probs = ml_model.predict(tensors, verbose=0)
+    predicted = np.argmax(probs, axis=1).astype("int32")
+    confidence = np.max(probs, axis=1).astype("float32")
+    expected = mnist_labels[indices].astype("int32")
+    correct_mask = predicted == expected
+
+    items = [
+        MnistBatchItemResponse(
+            index=int(indices[i]),
+            image=mnist_image_to_base64(mnist_images[indices[i]]),
+            label=int(expected[i]),
+            predicted_digit=int(predicted[i]),
+            confidence=round(float(confidence[i]), 6),
+            correct=bool(correct_mask[i]),
+        )
+        for i in range(sample_size)
+    ]
+
+    correct_count = int(np.sum(correct_mask))
+    total_count = int(sample_size)
+    incorrect_count = total_count - correct_count
+    accuracy = round((correct_count / total_count) * 100.0, 4) if total_count else 0.0
+
+    return MnistBatchResponse(
+        items=items,
+        total=total_count,
+        correct=correct_count,
+        incorrect=incorrect_count,
+        accuracy=accuracy,
     )
 
 
