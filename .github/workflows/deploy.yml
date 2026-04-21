@@ -35,6 +35,9 @@ jobs:
     needs: validate
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    env:
+      TF_INPUT: "false"
+      TF_IN_AUTOMATION: "true"
     outputs:
       aws_region: ${{ steps.meta.outputs.aws_region }}
       frontend_bucket: ${{ steps.tfout.outputs.frontend_bucket }}
@@ -114,22 +117,27 @@ jobs:
       - name: Import existing S3 buckets into Terraform state
         working-directory: infra/lambda
         run: |
+          set -euo pipefail
+          terraform state list || true
+
           if ! terraform state show aws_s3_bucket.artifacts >/dev/null 2>&1; then
             if aws s3api head-bucket --bucket "${{ steps.meta.outputs.frontend_bucket }}" >/dev/null 2>&1; then
-              terraform import aws_s3_bucket.artifacts "${{ steps.meta.outputs.frontend_bucket }}"
+              timeout 120s terraform import -input=false aws_s3_bucket.artifacts "${{ steps.meta.outputs.frontend_bucket }}"
             fi
           fi
 
           if ! terraform state show aws_s3_bucket.model >/dev/null 2>&1; then
             if aws s3api head-bucket --bucket "${{ steps.meta.outputs.model_bucket }}" >/dev/null 2>&1; then
-              terraform import aws_s3_bucket.model "${{ steps.meta.outputs.model_bucket }}"
+              timeout 120s terraform import -input=false aws_s3_bucket.model "${{ steps.meta.outputs.model_bucket }}"
             fi
           fi
+
+          terraform state list
 
       - name: Terraform apply
         working-directory: infra/lambda
         run: |
-          terraform apply -auto-approve \
+          terraform apply -input=false -auto-approve \
             -var "aws_region=${{ steps.meta.outputs.aws_region }}" \
             -var "frontend_bucket_name=${{ steps.meta.outputs.frontend_bucket }}" \
             -var "model_bucket_name=${{ steps.meta.outputs.model_bucket }}" \
