@@ -251,6 +251,11 @@ input[type="number"] {
   font-weight: 700;
 }
 
+.button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .button.primary {
   background: linear-gradient(120deg, #2f5fe5, #3e86ff);
   color: #fff;
@@ -286,6 +291,116 @@ input[type="number"] {
 
 .split[data-mode="dataset"] .box {
   min-height: 470px;
+}
+
+.dataset-panel {
+  z-index: 1;
+  border: 1px solid rgba(62, 103, 176, 0.36);
+  border-radius: 10px;
+  background: rgba(10, 24, 52, 0.74);
+  padding: 10px;
+}
+
+.dataset-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.dataset-panel-head h3 {
+  margin: 0;
+  color: #d8e9ff;
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
+.dataset-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.dataset-metrics span {
+  border: 1px solid rgba(84, 131, 213, 0.4);
+  background: rgba(12, 35, 74, 0.78);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: #b9d5ff;
+}
+
+.dataset-empty {
+  border: 1px dashed rgba(96, 143, 222, 0.45);
+  border-radius: 8px;
+  background: rgba(6, 20, 43, 0.55);
+  color: #8fb4eb;
+  font-size: 12px;
+  text-align: center;
+  padding: 20px 12px;
+}
+
+.dataset-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+}
+
+.dataset-card {
+  border: 1px solid rgba(62, 103, 176, 0.36);
+  border-radius: 8px;
+  background: rgba(7, 22, 47, 0.7);
+  overflow: hidden;
+}
+
+.dataset-card.ok {
+  border-color: rgba(20, 217, 111, 0.5);
+}
+
+.dataset-card.fail {
+  border-color: rgba(255, 90, 103, 0.6);
+}
+
+.dataset-card img {
+  display: block;
+  width: 100%;
+  height: 96px;
+  object-fit: contain;
+  background: #030a18;
+}
+
+.dataset-card-meta {
+  padding: 6px;
+  display: grid;
+  gap: 2px;
+  font-size: 11px;
+  color: #cfe2ff;
+}
+
+.dataset-card-bar {
+  margin-top: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(70, 115, 189, 0.28);
+  border: 1px solid rgba(89, 135, 210, 0.32);
+  overflow: hidden;
+}
+
+.dataset-card-bar > span {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #3bf0ff, #3f86ff);
+}
+
+.dataset-card.ok .dataset-card-bar > span {
+  background: linear-gradient(90deg, #1fe883, #3bf0ff);
+}
+
+.dataset-card.fail .dataset-card-bar > span {
+  background: linear-gradient(90deg, #ff8b95, #ff5a67);
 }
 
 .box {

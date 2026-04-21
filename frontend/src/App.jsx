@@ -13,10 +13,19 @@ const INITIAL_STATUS = {
 };
 
 const VIEW_LABELS = {
-  dataset: "Datos",
+  dataset: "Dataset",
   upload: "Carga",
   camera: "Camara",
 };
+
+function getRandomUniqueIndices(count, maxExclusive) {
+  const target = Math.min(Math.max(count, 1), maxExclusive);
+  const selected = new Set();
+  while (selected.size < target) {
+    selected.add(Math.floor(Math.random() * maxExclusive));
+  }
+  return Array.from(selected);
+}
 
 function App() {
   const fileInputRef = useRef(null);
@@ -39,6 +48,15 @@ function App() {
   });
   const [status, setStatus] = useState(INITIAL_STATUS);
   const [probabilities, setProbabilities] = useState({});
+  const [batchSize, setBatchSize] = useState(32);
+  const [isBatchRunning, setIsBatchRunning] = useState(false);
+  const [batchItems, setBatchItems] = useState([]);
+  const [batchSummary, setBatchSummary] = useState({
+    total: 0,
+    correct: 0,
+    incorrect: 0,
+    accuracy: 0,
+  });
 
   const hasOriginal = Boolean(originalBase64);
   const hasProcessed = Boolean(processedBase64);
@@ -108,6 +126,13 @@ function App() {
     setOriginalBase64(null);
     setProcessedBase64(null);
     setMnistExpectedLabel(null);
+    setBatchItems([]);
+    setBatchSummary({
+      total: 0,
+      correct: 0,
+      incorrect: 0,
+      accuracy: 0,
+    });
     setExpectedLabelUI("-");
     if (fileInputRef.current) fileInputRef.current.value = "";
     stopCamera();
@@ -261,6 +286,72 @@ function App() {
     }
   }
 
+  async function handleRunDatasetBatch() {
+    try {
+      const parsedBatchSize = Number(batchSize);
+      if (!Number.isInteger(parsedBatchSize) || parsedBatchSize < 1) {
+        throw new Error("La cantidad debe ser un entero mayor a 0.");
+      }
+      if (parsedBatchSize > 128) {
+        throw new Error("Por rendimiento, usa maximo 128 imagenes por lote.");
+      }
+
+      setIsBatchRunning(true);
+      setBatchItems([]);
+      setBatchSummary({
+        total: 0,
+        correct: 0,
+        incorrect: 0,
+        accuracy: 0,
+      });
+      setStatusBadgeByType("Analizando dataset...", "warn");
+      updateStatus(`Analizando ${parsedBatchSize} imagenes de prueba MNIST...`);
+
+      const indices = getRandomUniqueIndices(parsedBatchSize, 10000);
+      const rows = await Promise.all(
+        indices.map(async (index) => {
+          const sample = await getJson(`/sample-mnist?index=${index}`);
+          const prediction = await postJson("/predict-preprocessed", {
+            image: sample.image,
+          });
+          const confidence = Number(prediction.confidence) * 100;
+          const predictedDigit = Number(prediction.predicted_digit);
+          const expectedDigit = Number(sample.label);
+          return {
+            index,
+            image: sample.image,
+            expected: expectedDigit,
+            predicted: predictedDigit,
+            confidence,
+            correct: predictedDigit === expectedDigit,
+          };
+        })
+      );
+
+      const correct = rows.filter((item) => item.correct).length;
+      const total = rows.length;
+      const incorrect = total - correct;
+      const accuracy = total > 0 ? (correct / total) * 100 : 0;
+
+      setBatchItems(rows);
+      setBatchSummary({
+        total,
+        correct,
+        incorrect,
+        accuracy,
+      });
+      setStatusBadgeByType("Analisis de dataset completo", "ok");
+      updateStatus({
+        message: `Lote completado: ${correct}/${total} aciertos (${accuracy.toFixed(2)}%).`,
+      });
+    } catch (err) {
+      setStatusBadgeByType("Error analisis dataset", "error");
+      updateStatus(`Error en analisis por lote: ${err.message}`);
+    } finally {
+      setIsBatchRunning(false);
+    }
+  }
+
   async function handlePreprocess() {
     try {
       if (!originalBase64) throw new Error("Primero selecciona una imagen.");
@@ -391,7 +482,7 @@ function App() {
             <span className="help-chip">?</span>
             <span className="help-label">Ayuda</span>
             <div className="tooltip">
-              Cambia entre Datos, Carga y Camara para usar un flujo limpio sin
+              Cambia entre Dataset, Carga y Camara para usar un flujo limpio sin
               sobrecarga visual.
             </div>
           </div>
@@ -406,6 +497,23 @@ function App() {
           <div className={`toolbar view-section ${currentView === "dataset" ? "active" : ""}`}>
             <button className="button ghost" onClick={handleLoadMnist}>
               Cargar ejemplo MNIST
+            </button>
+            <label htmlFor="batchSizeInput"><strong>Cantidad en serie:</strong></label>
+            <input
+              id="batchSizeInput"
+              type="number"
+              min="1"
+              max="128"
+              step="1"
+              value={batchSize}
+              onChange={(e) => setBatchSize(e.target.value)}
+            />
+            <button
+              className="button primary"
+              disabled={isBatchRunning}
+              onClick={handleRunDatasetBatch}
+            >
+              {isBatchRunning ? "Analizando..." : "Analizar lote"}
             </button>
           </div>
 
@@ -518,6 +626,56 @@ function App() {
               </article>
             )}
           </div>
+
+          {isDataset && (
+            <section className="dataset-panel">
+              <div className="dataset-panel-head">
+                <h3>Analisis visual del set de prueba</h3>
+                <div className="dataset-metrics">
+                  <span>Total: {batchSummary.total}</span>
+                  <span>Aciertos: {batchSummary.correct}</span>
+                  <span>Fallos: {batchSummary.incorrect}</span>
+                  <span>Accuracy: {batchSummary.accuracy.toFixed(2)}%</span>
+                </div>
+              </div>
+
+              {batchItems.length === 0 ? (
+                <div className="dataset-empty">
+                  Ejecuta "Analizar lote" para evaluar imagenes del dataset de prueba.
+                </div>
+              ) : (
+                <div className="dataset-grid">
+                  {batchItems.map((item) => (
+                    <article
+                      key={item.index}
+                      className={`dataset-card ${item.correct ? "ok" : "fail"}`}
+                    >
+                      <img
+                        src={`data:image/png;base64,${item.image}`}
+                        alt={`MNIST ${item.index}`}
+                      />
+                      <div className="dataset-card-meta">
+                        <div>Idx #{item.index}</div>
+                        <div>Real: {item.expected}</div>
+                        <div>Pred: {item.predicted}</div>
+                        <div>Conf: {item.confidence.toFixed(2)}%</div>
+                        <div className="dataset-card-bar">
+                          <span
+                            style={{
+                              width: `${Math.max(
+                                0,
+                                Math.min(100, Number(item.confidence) || 0)
+                              )}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
 
           <div className="action-row">
             <button className="button ghost" onClick={clearAllInformation}>
