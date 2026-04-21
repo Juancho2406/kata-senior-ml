@@ -561,6 +561,36 @@ img.preview {
   font-weight: 700;
 }
 
+.semaforo-chip {
+  margin-top: 10px;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.semaforo-baja {
+  color: #ffd6d8;
+  background: rgba(255, 90, 103, 0.2);
+  border-color: rgba(255, 90, 103, 0.45);
+}
+
+.semaforo-media {
+  color: #ffe8b3;
+  background: rgba(255, 179, 0, 0.2);
+  border-color: rgba(255, 179, 0, 0.45);
+}
+
+.semaforo-plena {
+  color: #c7ffe2;
+  background: rgba(20, 217, 111, 0.2);
+  border-color: rgba(20, 217, 111, 0.45);
+}
+
 .status {
   border-radius: 999px;
   width: fit-content;
