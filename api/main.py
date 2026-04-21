@@ -256,11 +256,20 @@ def tensor_to_base64_image(tensor: np.ndarray) -> str:
 
 def preprocessed_base64_to_tensor(img: Image.Image) -> np.ndarray:
     """
-    Convierte una imagen ya preprocesada (esperada en estilo MNIST)
-    a tensor (1, 28, 28, 1) sin aplicar el pipeline pesado otra vez.
+    Convierte una imagen a tensor (1, 28, 28, 1) en estilo MNIST:
+    fondo oscuro y trazo claro, con normalizacion en [0, 1].
     """
     img_gray = img.convert("L").resize(TARGET_SIZE, Image.LANCZOS)
     arr = np.array(img_gray, dtype="float32") / 255.0
+
+    # Umbral suave para reforzar contraste del trazo y limpiar ruido leve.
+    threshold = max(0.2, min(0.7, float(arr.mean())))
+    arr = (arr > threshold).astype("float32")
+
+    # Escalamos para asegurar que el trazo tenga rango util de intensidad.
+    if float(arr.max()) > 0:
+        arr = arr / float(arr.max())
+
     if arr.std() < 1e-6:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

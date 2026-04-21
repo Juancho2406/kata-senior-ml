@@ -35,6 +35,8 @@ function App() {
   const [currentView, setCurrentView] = useState("dataset");
   const [originalBase64, setOriginalBase64] = useState(null);
   const [processedBase64, setProcessedBase64] = useState(null);
+  const [gradcamBase64, setGradcamBase64] = useState(null);
+  const [isGradcamLoading, setIsGradcamLoading] = useState(false);
   const [mnistExpectedLabel, setMnistExpectedLabel] = useState(null);
   const [label, setLabel] = useState(0);
 
@@ -48,6 +50,7 @@ function App() {
   });
   const [status, setStatus] = useState(INITIAL_STATUS);
   const [probabilities, setProbabilities] = useState({});
+  const [datasetAnalysisMode, setDatasetAnalysisMode] = useState("unit");
   const [batchSize, setBatchSize] = useState(32);
   const [isBatchRunning, setIsBatchRunning] = useState(false);
   const [batchItems, setBatchItems] = useState([]);
@@ -60,7 +63,9 @@ function App() {
 
   const hasOriginal = Boolean(originalBase64);
   const hasProcessed = Boolean(processedBase64);
+  const hasGradcam = Boolean(gradcamBase64);
   const isDataset = currentView === "dataset";
+  const isDatasetBatchMode = isDataset && datasetAnalysisMode === "batch";
   const showCamera = currentView === "camera";
   const showProcessedBox = currentView !== "dataset";
 
@@ -125,6 +130,7 @@ function App() {
   function clearAllInformation() {
     setOriginalBase64(null);
     setProcessedBase64(null);
+    setGradcamBase64(null);
     setMnistExpectedLabel(null);
     setBatchItems([]);
     setBatchSummary({
@@ -221,12 +227,52 @@ function App() {
 
   async function startCamera() {
     if (streamRef.current) return;
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment" },
-      audio: false,
-    });
-    streamRef.current = stream;
-    if (videoRef.current) videoRef.current.srcObject = stream;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      throw new Error("Este navegador no soporta acceso a camara.");
+    }
+
+    const isSecureContext =
+      window.isSecureContext ||
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1";
+    if (!isSecureContext) {
+      throw new Error("La camara requiere HTTPS o localhost.");
+    }
+
+    try {
+      // Primero disparamos prompt de permisos de forma generica.
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) videoRef.current.srcObject = stream;
+
+      // Intentamos orientar hacia camara trasera cuando el dispositivo lo soporte.
+      const track = stream.getVideoTracks()[0];
+      if (track?.applyConstraints) {
+        track
+          .applyConstraints({ facingMode: { ideal: "environment" } })
+          .catch(() => {});
+      }
+      return;
+    } catch (lastError) {
+      if (
+        lastError?.name === "NotAllowedError" ||
+        lastError?.name === "SecurityError"
+      ) {
+        throw new Error(
+          "Permiso de camara denegado. Habilitalo en el navegador y en el sistema."
+        );
+      }
+      if (
+        lastError?.name === "NotFoundError" ||
+        lastError?.name === "OverconstrainedError"
+      ) {
+        throw new Error("No se encontro una camara disponible en este dispositivo.");
+      }
+      throw new Error(lastError?.message || "No se pudo abrir la camara.");
+    }
   }
 
   function stopCamera() {
@@ -253,6 +299,10 @@ function App() {
   async function onFileChange(event) {
     const file = event.target.files?.[0];
     if (!file) return;
+    await loadImageFile(file);
+  }
+
+  async function loadImageFile(file) {
     const base64 = await new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(String(reader.result || "").split(",")[1]);
@@ -261,6 +311,7 @@ function App() {
     });
     setOriginalBase64(base64);
     setProcessedBase64(null);
+    setGradcamBase64(null);
     setMnistExpectedLabel(null);
     resetResultCards();
     updateStatus("Imagen cargada. Ahora puedes preprocesar.");
@@ -272,6 +323,7 @@ function App() {
       const data = await getJson(`/sample-mnist?index=${randomIndex}`);
       setOriginalBase64(data.image);
       setProcessedBase64(null);
+      setGradcamBase64(null);
       setMnistExpectedLabel(data.label);
       resetResultCards();
       setExpectedLabelUI(String(data.label));
@@ -306,6 +358,7 @@ function App() {
       });
       setStatusBadgeByType("Analizando dataset...", "warn");
       updateStatus(`Analizando ${parsedBatchSize} imagenes de prueba MNIST...`);
+      setGradcamBase64(null);
 
       const indices = getRandomUniqueIndices(parsedBatchSize, 10000);
       const rows = await Promise.all(
@@ -364,6 +417,7 @@ function App() {
       }
       const data = await postJson("/preprocess", { image: originalBase64 });
       setProcessedBase64(data.processed_image);
+      setGradcamBase64(null);
       setStatusBadgeByType("Imagen preprocesada", "ok");
       updateStatus(data);
     } catch (err) {
@@ -415,6 +469,56 @@ function App() {
     }
   }
 
+  async function handleGradcamOptional() {
+    try {
+      if (!originalBase64) throw new Error("Primero selecciona una imagen.");
+      setIsGradcamLoading(true);
+      const endpoint = "/predict/explain";
+      const data = await postJson(endpoint, { image: originalBase64 });
+
+      setPredictedDigit(String(data.predicted_digit));
+      setConfidenceText(
+        `Confianza: ${(Number(data.confidence) * 100).toFixed(2)}%`
+      );
+      setEndpointUsed(endpoint);
+      setProbabilities(data.probabilities || {});
+      setGradcamBase64(data.gradcam_base64 || null);
+
+      if (mnistExpectedLabel !== null) {
+        const ok = Number(data.predicted_digit) === Number(mnistExpectedLabel);
+        setExpectedLabelUI(String(mnistExpectedLabel));
+        setStatusBadgeByType(
+          ok ? "Prediccion correcta" : "Prediccion incorrecta",
+          ok ? "ok" : "warn"
+        );
+        updateStatus({
+          ...data,
+          expected_label: mnistExpectedLabel,
+          is_correct: ok,
+          endpoint,
+          message: data.gradcam_base64
+            ? "Prediccion explicada con Grad-CAM."
+            : "Prediccion lista. Grad-CAM no disponible.",
+        });
+      } else {
+        setExpectedLabelUI("-");
+        setStatusBadgeByType("Prediccion lista", "ok");
+        updateStatus({
+          ...data,
+          endpoint,
+          message: data.gradcam_base64
+            ? "Prediccion explicada con Grad-CAM."
+            : "Prediccion lista. Grad-CAM no disponible.",
+        });
+      }
+    } catch (err) {
+      setStatusBadgeByType("Error Grad-CAM", "error");
+      updateStatus(`Error generando Grad-CAM: ${err.message}`);
+    } finally {
+      setIsGradcamLoading(false);
+    }
+  }
+
   async function handleDownload(kind) {
     try {
       const result = await saveFromSource(kind);
@@ -438,8 +542,30 @@ function App() {
     updateStatus(`Vista activa: ${VIEW_LABELS[view]}`);
     if (view === "dataset") {
       setProcessedBase64(null);
+      setDatasetAnalysisMode("unit");
     }
   }
+
+  const batchBars = useMemo(() => {
+    const perDigit = Array.from({ length: 10 }, (_, digit) => ({
+      digit: String(digit),
+      total: 0,
+      correct: 0,
+      rate: 0,
+    }));
+
+    batchItems.forEach((item) => {
+      const row = perDigit[item.expected];
+      if (!row) return;
+      row.total += 1;
+      if (item.correct) row.correct += 1;
+    });
+
+    return perDigit.map((item) => ({
+      ...item,
+      rate: item.total > 0 ? (item.correct / item.total) * 100 : 0,
+    }));
+  }, [batchItems]);
 
   const bars = useMemo(() => {
     const all = Array.from({ length: 10 }, (_, digit) => ({
@@ -495,26 +621,47 @@ function App() {
           </div>
 
           <div className={`toolbar view-section ${currentView === "dataset" ? "active" : ""}`}>
-            <button className="button ghost" onClick={handleLoadMnist}>
-              Cargar ejemplo MNIST
-            </button>
-            <label htmlFor="batchSizeInput"><strong>Cantidad en serie:</strong></label>
-            <input
-              id="batchSizeInput"
-              type="number"
-              min="1"
-              max="128"
-              step="1"
-              value={batchSize}
-              onChange={(e) => setBatchSize(e.target.value)}
-            />
-            <button
-              className="button primary"
-              disabled={isBatchRunning}
-              onClick={handleRunDatasetBatch}
-            >
-              {isBatchRunning ? "Analizando..." : "Analizar lote"}
-            </button>
+            <div className="dataset-mode-group">
+              <span className="dataset-mode-label">Analisis:</span>
+              <button
+                className={`button ${datasetAnalysisMode === "unit" ? "primary" : "ghost"}`}
+                onClick={() => setDatasetAnalysisMode("unit")}
+              >
+                Unidad
+              </button>
+              <button
+                className={`button ${datasetAnalysisMode === "batch" ? "primary" : "ghost"}`}
+                onClick={() => setDatasetAnalysisMode("batch")}
+              >
+                Lote
+              </button>
+            </div>
+
+            {datasetAnalysisMode === "unit" ? (
+              <button className="button ghost" onClick={handleLoadMnist}>
+                Cargar ejemplo MNIST
+              </button>
+            ) : (
+              <>
+                <label htmlFor="batchSizeInput"><strong>Cantidad en serie:</strong></label>
+                <input
+                  id="batchSizeInput"
+                  type="number"
+                  min="1"
+                  max="128"
+                  step="1"
+                  value={batchSize}
+                  onChange={(e) => setBatchSize(e.target.value)}
+                />
+                <button
+                  className="button primary"
+                  disabled={isBatchRunning}
+                  onClick={handleRunDatasetBatch}
+                >
+                  {isBatchRunning ? "Analizando..." : "Analizar lote"}
+                </button>
+              </>
+            )}
           </div>
 
           <div className={`toolbar view-section ${currentView === "upload" ? "active" : ""}`}>
@@ -545,6 +692,7 @@ function App() {
               try {
                 setOriginalBase64(captureFrameAsBase64());
                 setProcessedBase64(null);
+                setGradcamBase64(null);
                 setMnistExpectedLabel(null);
                 resetResultCards();
                 setStatusBadgeByType("Foto capturada", "ok");
@@ -561,6 +709,7 @@ function App() {
             }}>Cerrar camara</button>
           </div>
 
+          {!isDatasetBatchMode && (
           <div className="toolbar">
             <label htmlFor="labelInput"><strong>Etiqueta:</strong></label>
             <input
@@ -573,8 +722,13 @@ function App() {
               onChange={(e) => setLabel(e.target.value)}
             />
           </div>
+          )}
 
-          <div className="split" data-mode={currentView}>
+          {!isDatasetBatchMode && (
+          <div
+            className={`split ${isDataset && !isDatasetBatchMode ? "split-dataset-unit" : ""}`}
+            data-mode={currentView}
+          >
             {showCamera && (
               <article className="box" id="cameraBox">
                 <h3>Camara</h3>
@@ -582,7 +736,11 @@ function App() {
               </article>
             )}
 
-            <article className={`box image-box ${hasOriginal ? "has-image" : ""}`}>
+            <article
+              className={`box image-box ${hasOriginal ? "has-image" : ""} ${
+                isDataset && !isDatasetBatchMode ? "dataset-unit-box" : ""
+              }`}
+            >
               <h3>Original</h3>
               <button
                 className="image-download-btn"
@@ -625,9 +783,27 @@ function App() {
                 )}
               </article>
             )}
-          </div>
 
-          {isDataset && (
+            <article className={`box image-box ${hasGradcam ? "has-image" : ""}`}>
+              <h3>Mapa de atencion (Grad-CAM)</h3>
+              {!hasGradcam && (
+                <div className="image-placeholder">Sin mapa de atencion</div>
+              )}
+              {hasGradcam && (
+                <img
+                  className="preview"
+                  alt="mapa de atencion grad-cam"
+                  src={`data:image/png;base64,${gradcamBase64}`}
+                />
+              )}
+              <p className="attention-note">
+                Rojo = region mas importante para la prediccion.
+              </p>
+            </article>
+          </div>
+          )}
+
+          {isDatasetBatchMode && (
             <section className="dataset-panel">
               <div className="dataset-panel-head">
                 <h3>Analisis visual del set de prueba</h3>
@@ -677,6 +853,7 @@ function App() {
             </section>
           )}
 
+          {!isDatasetBatchMode && (
           <div className="action-row">
             <button className="button ghost" onClick={clearAllInformation}>
               Limpiar todo
@@ -686,42 +863,78 @@ function App() {
                 1) Preprocesar
               </button>
             )}
+            <button
+              className="button ghost"
+              disabled={isGradcamLoading}
+              onClick={handleGradcamOptional}
+            >
+              {isGradcamLoading ? "Generando mapa..." : "Mostrar Grad-CAM"}
+            </button>
             <button className="button accent" onClick={handlePredict}>
               Ver resultado
             </button>
           </div>
+          )}
         </section>
 
         <aside className="result-panel shell">
           <div className="result-head">
-            <div className="kicker">Salida inferida</div>
-            <div className="digit">{predictedDigit}</div>
-            <div id="confidenceText">{confidenceText}</div>
+            <div className="kicker">
+              {isDatasetBatchMode ? "Analisis por lote" : "Salida inferida"}
+            </div>
+            <div className="digit">
+              {isDatasetBatchMode ? `${batchSummary.accuracy.toFixed(1)}%` : predictedDigit}
+            </div>
+            <div id="confidenceText">
+              {isDatasetBatchMode ? "Accuracy global del lote" : confidenceText}
+            </div>
           </div>
 
           <span className={`status status-${statusBadge.type}`}>{statusBadge.text}</span>
 
           <div className="meta">
-            <div>Ruta API<span className="value">{endpointUsed}</span></div>
-            <div>Etiqueta esperada<span className="value">{expectedLabelUI}</span></div>
+            <div>
+              Ruta API
+              <span className="value">
+                {isDatasetBatchMode ? "/predict-preprocessed (lote)" : endpointUsed}
+              </span>
+            </div>
+            <div>
+              {isDatasetBatchMode ? "Total evaluadas" : "Etiqueta esperada"}
+              <span className="value">
+                {isDatasetBatchMode ? String(batchSummary.total) : expectedLabelUI}
+              </span>
+            </div>
           </div>
 
           <div className="mini-box">
-            <h3>Espectro de confianza (0-9)</h3>
+            <h3>
+              {isDatasetBatchMode
+                ? "Rendimiento por digito (0-9)"
+                : "Espectro de confianza (0-9)"}
+            </h3>
             <div>
-              {bars.map((item) => (
+              {(isDatasetBatchMode ? batchBars : bars).map((item) => (
                 <div className="bar-row" key={item.digit}>
                   <div className="bar-label">
                     <span>
                       Digito {item.digit}
                       {item.isTop ? " ★" : ""}
                     </span>
-                    <span>{(item.prob * 100).toFixed(2)}%</span>
+                    <span>
+                      {isDatasetBatchMode
+                        ? `${item.correct}/${item.total} (${item.rate.toFixed(2)}%)`
+                        : `${(item.prob * 100).toFixed(2)}%`}
+                    </span>
                   </div>
                   <div className="bar">
                     <span
                       style={{
-                        width: `${Math.max(0, Math.min(100, item.prob * 100))}%`,
+                        width: `${
+                          isDatasetBatchMode
+                            ? Math.max(0, Math.min(100, item.rate))
+                            : Math.max(0, Math.min(100, item.prob * 100))
+                        }%`,
                         background: item.isTop
                           ? "linear-gradient(90deg, #14d96f, #00d2ff)"
                           : "linear-gradient(90deg, #06c8ff, #3f86ff)",
@@ -737,11 +950,38 @@ function App() {
             <h3>Estado</h3>
             <table className="status-table" aria-label="Estado de inferencia">
               <tbody>
-                <tr><th>Endpoint</th><td>{status.endpoint}</td></tr>
-                <tr><th>Predicho</th><td>{status.predicho}</td></tr>
-                <tr><th>Confianza</th><td>{status.confianza}</td></tr>
-                <tr><th>Esperado</th><td>{status.esperado}</td></tr>
-                <tr><th>Correcto</th><td>{status.correcto}</td></tr>
+                <tr>
+                  <th>Endpoint</th>
+                  <td>{isDatasetBatchMode ? "/predict-preprocessed (lote)" : status.endpoint}</td>
+                </tr>
+                <tr>
+                  <th>Predicho</th>
+                  <td>{isDatasetBatchMode ? "-" : status.predicho}</td>
+                </tr>
+                <tr>
+                  <th>Confianza</th>
+                  <td>
+                    {isDatasetBatchMode
+                      ? `${batchSummary.accuracy.toFixed(2)}%`
+                      : status.confianza}
+                  </td>
+                </tr>
+                <tr>
+                  <th>Esperado</th>
+                  <td>
+                    {isDatasetBatchMode
+                      ? `${batchSummary.total} muestras`
+                      : status.esperado}
+                  </td>
+                </tr>
+                <tr>
+                  <th>Correcto</th>
+                  <td>
+                    {isDatasetBatchMode
+                      ? `${batchSummary.correct}/${batchSummary.total}`
+                      : status.correcto}
+                  </td>
+                </tr>
                 <tr><th>Mensaje</th><td>{status.mensaje}</td></tr>
               </tbody>
             </table>
