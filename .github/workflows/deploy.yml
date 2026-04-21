@@ -122,13 +122,23 @@ jobs:
 
           if ! terraform state show aws_s3_bucket.artifacts >/dev/null 2>&1; then
             if aws s3api head-bucket --bucket "${{ steps.meta.outputs.frontend_bucket }}" >/dev/null 2>&1; then
-              timeout 120s terraform import -input=false aws_s3_bucket.artifacts "${{ steps.meta.outputs.frontend_bucket }}"
+              timeout 120s terraform import -input=false \
+                -var "aws_region=${{ steps.meta.outputs.aws_region }}" \
+                -var "frontend_bucket_name=${{ steps.meta.outputs.frontend_bucket }}" \
+                -var "model_bucket_name=${{ steps.meta.outputs.model_bucket }}" \
+                -var "lambda_image_uri=${BOOTSTRAP_IMAGE}" \
+                aws_s3_bucket.artifacts "${{ steps.meta.outputs.frontend_bucket }}"
             fi
           fi
 
           if ! terraform state show aws_s3_bucket.model >/dev/null 2>&1; then
             if aws s3api head-bucket --bucket "${{ steps.meta.outputs.model_bucket }}" >/dev/null 2>&1; then
-              timeout 120s terraform import -input=false aws_s3_bucket.model "${{ steps.meta.outputs.model_bucket }}"
+              timeout 120s terraform import -input=false \
+                -var "aws_region=${{ steps.meta.outputs.aws_region }}" \
+                -var "frontend_bucket_name=${{ steps.meta.outputs.frontend_bucket }}" \
+                -var "model_bucket_name=${{ steps.meta.outputs.model_bucket }}" \
+                -var "lambda_image_uri=${BOOTSTRAP_IMAGE}" \
+                aws_s3_bucket.model "${{ steps.meta.outputs.model_bucket }}"
             fi
           fi
 
