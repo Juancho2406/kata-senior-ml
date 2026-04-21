@@ -1,0 +1,201 @@
+name: Deploy kata-senior-ml (IaC -> API -> Frontend)
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Basic import check
+        run: |
+          python -c "import fastapi, tensorflow, numpy; print('OK')"
+
+  deploy_iac:
+    name: Deploy IaC
+    needs: validate
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      aws_region: ${{ steps.meta.outputs.aws_region }}
+      frontend_bucket: ${{ steps.tfout.outputs.frontend_bucket }}
+      model_bucket: ${{ steps.tfout.outputs.model_bucket }}
+      lambda_name: ${{ steps.tfout.outputs.lambda_name }}
+      api_url: ${{ steps.tfout.outputs.api_url }}
+      ecr_registry: ${{ steps.meta.outputs.ecr_registry }}
+      ecr_repository: ${{ steps.meta.outputs.ecr_repository }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Resolve deploy metadata
+        id: meta
+        run: |
+          ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+          PROJECT_NAME="kata-senior-ml"
+          AWS_REGION="${{ vars.AWS_REGION }}"
+          ECR_REPOSITORY="${PROJECT_NAME}-api"
+          ECR_REGISTRY="${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+          FRONTEND_BUCKET="${PROJECT_NAME}-frontend-${ACCOUNT_ID}-${AWS_REGION}"
+          MODEL_BUCKET="${PROJECT_NAME}-models-${ACCOUNT_ID}-${AWS_REGION}"
+          TFSTATE_BUCKET="${PROJECT_NAME}-tfstate-${ACCOUNT_ID}-${AWS_REGION}"
+
+          echo "aws_region=${AWS_REGION}" >> "$GITHUB_OUTPUT"
+          echo "ecr_repository=${ECR_REPOSITORY}" >> "$GITHUB_OUTPUT"
+          echo "ecr_registry=${ECR_REGISTRY}" >> "$GITHUB_OUTPUT"
+          echo "frontend_bucket=${FRONTEND_BUCKET}" >> "$GITHUB_OUTPUT"
+          echo "model_bucket=${MODEL_BUCKET}" >> "$GITHUB_OUTPUT"
+          echo "tfstate_bucket=${TFSTATE_BUCKET}" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure Terraform backend bucket
+        run: |
+          aws s3api head-bucket --bucket "${{ steps.meta.outputs.tfstate_bucket }}" >/dev/null 2>&1 || \
+            aws s3api create-bucket --bucket "${{ steps.meta.outputs.tfstate_bucket }}" --region "${{ steps.meta.outputs.aws_region }}"
+          aws s3api put-bucket-versioning \
+            --bucket "${{ steps.meta.outputs.tfstate_bucket }}" \
+            --versioning-configuration Status=Enabled
+
+      - name: Ensure ECR repository for Lambda images
+        run: |
+          aws ecr describe-repositories --repository-names "${{ steps.meta.outputs.ecr_repository }}" --region "${{ steps.meta.outputs.aws_region }}" >/dev/null 2>&1 || \
+            aws ecr create-repository --repository-name "${{ steps.meta.outputs.ecr_repository }}" --image-scanning-configuration scanOnPush=true --region "${{ steps.meta.outputs.aws_region }}"
+
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Push bootstrap image for initial Lambda provisioning
+        env:
+          ECR_REGISTRY: ${{ steps.meta.outputs.ecr_registry }}
+          ECR_REPOSITORY: ${{ steps.meta.outputs.ecr_repository }}
+        run: |
+          BOOTSTRAP_IMAGE="${ECR_REGISTRY}/${ECR_REPOSITORY}:bootstrap"
+          docker build -f api/Dockerfile.bootstrap -t "${BOOTSTRAP_IMAGE}" api
+          docker push "${BOOTSTRAP_IMAGE}"
+          echo "BOOTSTRAP_IMAGE=${BOOTSTRAP_IMAGE}" >> "$GITHUB_ENV"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform init
+        working-directory: infra/lambda
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ steps.meta.outputs.tfstate_bucket }}" \
+            -backend-config="key=kata-senior-ml/terraform.tfstate" \
+            -backend-config="region=${{ steps.meta.outputs.aws_region }}"
+
+      - name: Terraform apply
+        working-directory: infra/lambda
+        run: |
+          terraform apply -auto-approve \
+            -var "aws_region=${{ steps.meta.outputs.aws_region }}" \
+            -var "frontend_bucket_name=${{ steps.meta.outputs.frontend_bucket }}" \
+            -var "model_bucket_name=${{ steps.meta.outputs.model_bucket }}" \
+            -var "lambda_image_uri=${BOOTSTRAP_IMAGE}"
+
+      - name: Capture IaC outputs
+        id: tfout
+        working-directory: infra/lambda
+        run: |
+          echo "frontend_bucket=$(terraform output -raw frontend_bucket_name)" >> "$GITHUB_OUTPUT"
+          echo "model_bucket=$(terraform output -raw model_bucket_name)" >> "$GITHUB_OUTPUT"
+          echo "lambda_name=$(terraform output -raw lambda_function_name)" >> "$GITHUB_OUTPUT"
+          echo "api_url=$(terraform output -raw api_url)" >> "$GITHUB_OUTPUT"
+
+  deploy_api:
+    name: Deploy API image to Lambda
+    needs: deploy_iac
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ needs.deploy_iac.outputs.aws_region }}
+
+      - name: Download model artifact from S3
+        run: |
+          mkdir -p api/model
+          aws s3 cp "s3://${{ needs.deploy_iac.outputs.model_bucket }}/mnist/mnist_cnn.h5" api/model/mnist_cnn.h5
+          test -s api/model/mnist_cnn.h5
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push API image
+        env:
+          ECR_REGISTRY: ${{ needs.deploy_iac.outputs.ecr_registry }}
+          ECR_REPOSITORY: ${{ needs.deploy_iac.outputs.ecr_repository }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          IMAGE_URI="${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+          docker build -f api/Dockerfile -t "${IMAGE_URI}" api
+          docker push "${IMAGE_URI}"
+          echo "IMAGE_URI=${IMAGE_URI}" >> "$GITHUB_ENV"
+
+      - name: Update Lambda with API image
+        run: |
+          aws lambda update-function-code \
+            --function-name "${{ needs.deploy_iac.outputs.lambda_name }}" \
+            --image-uri "${IMAGE_URI}" \
+            --publish
+          aws lambda wait function-updated \
+            --function-name "${{ needs.deploy_iac.outputs.lambda_name }}"
+
+  deploy_frontend:
+    name: Deploy frontend to S3
+    needs: [deploy_iac, deploy_api]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ needs.deploy_iac.outputs.aws_region }}
+
+      - name: Render frontend runtime config from IaC output
+        run: |
+          cat <<EOF > frontend/config.js
+          window.__API_BASE_URL__ = "${{ needs.deploy_iac.outputs.api_url }}";
+          EOF
+
+      - name: Sync frontend assets
+        run: |
+          aws s3 sync frontend/ "s3://${{ needs.deploy_iac.outputs.frontend_bucket }}" --delete

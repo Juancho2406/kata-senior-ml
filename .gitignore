@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+.venv/
+venv/
+env/
+pip-wheel-metadata/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Model artifacts
+*.h5
+*.pt
+*.pkl
+*.joblib
+api/model/*
+!api/model/.gitkeep
+
+# Build / package
+build/
+dist/
+*.egg-info/
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Env and secrets
+.env
+*.pem
+*.key
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/
+data/
