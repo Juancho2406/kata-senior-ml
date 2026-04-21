@@ -223,12 +223,19 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ needs.deploy_iac.outputs.aws_region }}
 
-      - name: Render frontend runtime config from IaC output
-        run: |
-          cat <<EOF > frontend/config.js
-          window.__API_BASE_URL__ = "${{ needs.deploy_iac.outputs.api_url }}";
-          EOF
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
 
-      - name: Sync frontend assets
+      - name: Build frontend (Vite)
+        env:
+          VITE_API_BASE_URL: ${{ needs.deploy_iac.outputs.api_url }}
         run: |
-          aws s3 sync frontend/ "s3://${{ needs.deploy_iac.outputs.frontend_bucket }}" --delete
+          cd frontend
+          npm ci
+          npm run build
+
+      - name: Sync built frontend assets
+        run: |
+          aws s3 sync frontend/dist/ "s3://${{ needs.deploy_iac.outputs.frontend_bucket }}" --delete
