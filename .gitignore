@@ -23,6 +23,8 @@ api/model/*
 build/
 dist/
 *.egg-info/
+frontend/node_modules/
+frontend/dist/
 
 # Terraform
 .terraform/
@@ -45,3 +47,4 @@ override.tf.json
 .idea/
 .vscode/
 data/
+scripts/
