@@ -1,0 +1,216 @@
+<mxfile host="app.diagrams.net" version="21.0.0" type="device">
+  <diagram id="aws-architecture" name="Arquitectura AWS">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- AWS Cloud boundary -->
+        <mxCell id="aws-group" value="AWS Cloud" style="points=[[0,0],[0.25,0],[0.5,0],[0.75,0],[1,0],[1,0.25],[1,0.5],[1,0.75],[1,1],[0.75,1],[0.5,1],[0.25,1],[0,1],[0,0.75],[0,0.5],[0,0.25]];shape=mxgraph.aws4.group;grIcon=mxgraph.aws4.group_aws_cloud_alt;strokeColor=#232F3E;fillColor=#FFFFFF;verticalLabelPosition=top;verticalAlign=bottom;align=center;html=1;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="210" y="70" width="890" height="660" as="geometry" />
+        </mxCell>
+
+        <!-- User -->
+        <mxCell id="user" value="Usuario" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#232F3E;labelBackgroundColor=#ffffff;labelBorderColor=none;fontStyle=1;align=center;html=1;shape=mxgraph.aws4.user;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="50" y="300" width="60" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- CloudFront -->
+        <mxCell id="cf" value="CloudFront" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#8C4FFF;labelBackgroundColor=#ffffff;labelBorderColor=none;fontStyle=1;align=center;html=1;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cloudfront;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="330" y="290" width="60" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="cf-label" value="CDN + HTTPS" style="text;html=1;align=center;verticalAlign=middle;fontSize=10;fontStyle=2;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="305" y="355" width="110" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- S3 Frontend -->
+        <mxCell id="s3-fe" value="S3 Frontend" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#3F8624;labelBackgroundColor=#ffffff;labelBorderColor=none;fontStyle=1;align=center;html=1;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.s3;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="330" y="520" width="60" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="s3-fe-label" value="React SPA (estático)" style="text;html=1;align=center;verticalAlign=middle;fontSize=10;fontStyle=2;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="300" y="585" width="120" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- API Gateway -->
+        <mxCell id="apigw" value="API Gateway" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#8C4FFF;labelBackgroundColor=#ffffff;labelBorderColor=none;fontStyle=1;align=center;html=1;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.api_gateway;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="570" y="290" width="60" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="apigw-label" value="HTTP API" style="text;html=1;align=center;verticalAlign=middle;fontSize=10;fontStyle=2;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="545" y="355" width="110" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- Lambda -->
+        <mxCell id="lambda" value="Lambda" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#ED7100;labelBackgroundColor=#ffffff;labelBorderColor=none;fontStyle=1;align=center;html=1;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.lambda;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="810" y="290" width="60" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="lambda-label" value="FastAPI + Mangum&#xa;Python 3.11" style="text;html=1;align=center;verticalAlign=middle;fontSize=10;fontStyle=2;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="785" y="355" width="110" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- ECR -->
+        <mxCell id="ecr" value="ECR" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#ED7100;labelBackgroundColor=#ffffff;labelBorderColor=none;fontStyle=1;align=center;html=1;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.ecr;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="570" y="520" width="60" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ecr-label" value="Imagen Docker" style="text;html=1;align=center;verticalAlign=middle;fontSize=10;fontStyle=2;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="545" y="585" width="110" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- S3 Models -->
+        <mxCell id="s3-model" value="S3 Modelos" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#3F8624;labelBackgroundColor=#ffffff;labelBorderColor=none;fontStyle=1;align=center;html=1;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.s3;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="810" y="520" width="60" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="s3-model-label" value="mnist_cnn.h5" style="text;html=1;align=center;verticalAlign=middle;fontSize=10;fontStyle=2;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="785" y="585" width="110" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- CloudWatch Logs -->
+        <mxCell id="cw" value="CloudWatch" style="outlineConnect=0;fontColor=#232F3E;gradientColor=none;strokeColor=none;fillColor=#E7157B;labelBackgroundColor=#ffffff;labelBorderColor=none;fontStyle=1;align=center;html=1;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.cloudwatch;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="980" y="290" width="60" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="cw-label" value="Logs" style="text;html=1;align=center;verticalAlign=middle;fontSize=10;fontStyle=2;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="980" y="355" width="60" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- Edges -->
+        <!-- User → CloudFront -->
+        <mxCell id="e1" value="HTTPS" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#232F3E;fontStyle=1;fontSize=10;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="user" target="cf" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- CloudFront → S3 Frontend -->
+        <mxCell id="e2" value="archivos estáticos" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#3F8624;fontStyle=1;fontSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="cf" target="s3-fe" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- CloudFront → API Gateway -->
+        <mxCell id="e3" value="peticiones API" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#8C4FFF;fontStyle=1;fontSize=10;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="cf" target="apigw" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- API Gateway → Lambda -->
+        <mxCell id="e4" value="HTTP Proxy" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#ED7100;fontStyle=1;fontSize=10;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="apigw" target="lambda" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Lambda → S3 Models -->
+        <mxCell id="e5" value="descarga modelo (cold start)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#3F8624;fontStyle=1;fontSize=10;dashed=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="lambda" target="s3-model" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ECR → Lambda -->
+        <mxCell id="e6" value="imagen Docker" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#ED7100;fontStyle=1;fontSize=10;dashed=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" source="ecr" target="lambda" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Lambda → CloudWatch -->
+        <mxCell id="e7" value="logs" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#E7157B;fontStyle=1;fontSize=10;dashed=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="lambda" target="cw" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram id="inference-pipeline" name="Pipeline de Inferencia">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="900" pageHeight="1400" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" value="Pipeline de Inferencia — Clasificador MNIST" style="text;html=1;align=center;verticalAlign=middle;resizable=0;strokeColor=none;fillColor=none;fontSize=16;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="20" width="520" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- FASE 1: Input -->
+        <mxCell id="s-in" value="&lt;b&gt;Imagen de entrada&lt;/b&gt;&lt;br&gt;POST /predict · campo &lt;i&gt;image&lt;/i&gt; en base64" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;arcSize=50;" vertex="1" parent="1">
+          <mxGeometry x="180" y="80" width="280" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- FASE 1: Decodificación -->
+        <mxCell id="s-decode" value="&lt;b&gt;Fase 1 — Decodificación&lt;/b&gt;&lt;br&gt;base64.b64decode(validate=True)&lt;br&gt;Image.open() + verify() + Image.open()&lt;br&gt;&lt;font color=&quot;#b85450&quot;&gt;HTTP 400: base64 inválido · vacío · formato no reconocido&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="155" y="165" width="330" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- FASE 2: Escala de grises -->
+        <mxCell id="s-gray" value="&lt;b&gt;Fase 2 — Escala de grises&lt;/b&gt;&lt;br&gt;img.convert(&quot;L&quot;) → L = 0.299R + 0.587G + 0.114B&lt;br&gt;arr / 255.0  →  rango [0.0, 1.0]&lt;br&gt;&lt;font color=&quot;#b85450&quot;&gt;Guard: arr.std() &amp;lt; 1e-6 → HTTP 400 (imagen uniforme)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="155" y="275" width="330" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- FASE 3: Detección de fondo -->
+        <mxCell id="s-bg" value="&lt;b&gt;Fase 3 — ¿Fondo claro?&lt;/b&gt;&lt;br&gt;border = concat(arr[0,:] arr[-1,:] arr[:,0] arr[:,-1])&lt;br&gt;border.mean() &amp;gt; 0.5" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="135" y="385" width="370" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="bg-si" value="Sí → arr = 1.0 − arr&lt;br&gt;(normalizar a MNIST:&lt;br&gt;fondo oscuro, trazo claro)" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;strokeColor=none;fillColor=none;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="520" y="400" width="170" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="bg-no" value="No" style="text;html=1;align=center;verticalAlign=middle;fontSize=10;fontStyle=2;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="305" y="468" width="30" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- FASE 4: Umbralización -->
+        <mxCell id="s-thresh" value="&lt;b&gt;Fase 4 — Umbralización dinámica&lt;/b&gt;&lt;br&gt;threshold = max(0.2, min(0.7, arr.mean()))&lt;br&gt;binary = (arr &amp;gt; threshold).astype(float32)&lt;br&gt;→ 1.0 trazo  ·  0.0 fondo  (binarización dura)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="155" y="505" width="330" height="75" as="geometry" />
+        </mxCell>
+
+        <!-- FASE 5: Resize -->
+        <mxCell id="s-resize" value="&lt;b&gt;Fase 5 — Resize 28×28&lt;/b&gt;&lt;br&gt;Image.fromarray(binary × 255, mode=&quot;L&quot;)&lt;br&gt;img.resize((28,28), Image.LANCZOS)&lt;br&gt;→ filtro sinc de alta calidad, preserva bordes del trazo" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="155" y="620" width="330" height="75" as="geometry" />
+        </mxCell>
+
+        <!-- FASE 6: Normalización final -->
+        <mxCell id="s-norm" value="&lt;b&gt;Fase 6 — Normalización final&lt;/b&gt;&lt;br&gt;out = np.array(img_resized, float32) / 255.0&lt;br&gt;if out.max() &amp;gt; 0: out = out / out.max()  ← max=1.0&lt;br&gt;reshape → tensor (1, 28, 28, 1)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="155" y="735" width="330" height="75" as="geometry" />
+        </mxCell>
+
+        <!-- FASE 7: CNN -->
+        <mxCell id="s-cnn" value="&lt;b&gt;Fase 7 — Inferencia CNN  (mnist_cnn)&lt;/b&gt;&lt;br&gt;ml_model.predict(tensor, verbose=0)[0]&lt;br&gt;→ softmax: vector de 10 probabilidades (suma = 1.0)&lt;br&gt;predicted = argmax(probs)  ·  confidence = max(probs)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="155" y="850" width="330" height="75" as="geometry" />
+        </mxCell>
+
+        <!-- Grad-CAM branch -->
+        <mxCell id="s-gradcam" value="&lt;b&gt;Grad-CAM&lt;/b&gt; · solo /predict/explain&lt;br&gt;GradientTape → ∂score_clase/∂conv_output&lt;br&gt;pooled_grads = reduce_mean(grads, (0,1,2))&lt;br&gt;heatmap = relu(Σ conv × pooled)&lt;br&gt;overlay = addWeighted(orig 60%, jet 40%)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="540" y="850" width="240" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- FASE 8: Output -->
+        <mxCell id="s-out" value="&lt;b&gt;Fase 8 — Respuesta JSON&lt;/b&gt;&lt;br&gt;{ predicted_digit, confidence, probabilities: {&quot;0&quot;..&quot;9&quot;} }&lt;br&gt;+ gradcam_base64 (PNG en base64, si se pidió)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;arcSize=50;" vertex="1" parent="1">
+          <mxGeometry x="155" y="975" width="330" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Arrows -->
+        <mxCell id="a1" value="" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="s-in" target="s-decode" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a2" value="" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="s-decode" target="s-gray" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a3" value="" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="s-gray" target="s-bg" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a4" value="" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="s-bg" target="s-thresh" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a5" value="" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="s-thresh" target="s-resize" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a6" value="" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="s-resize" target="s-norm" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a7" value="" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="s-norm" target="s-cnn" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a8" value="" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="s-cnn" target="s-out" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a9" value="/predict/explain" style="edgeStyle=orthogonalEdgeStyle;dashed=1;strokeColor=#9673a6;fontSize=10;fontStyle=2;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="s-cnn" target="s-gradcam" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="a10" value="" style="edgeStyle=orthogonalEdgeStyle;dashed=1;strokeColor=#9673a6;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="s-gradcam" target="s-out" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Legend -->
+        <mxCell id="leg-title" value="Leyenda" style="text;html=1;align=left;fontSize=12;fontStyle=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="20" y="850" width="80" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="leg-io" value="Entrada / Salida" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;arcSize=50;" vertex="1" parent="1">
+          <mxGeometry x="20" y="876" width="120" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="leg-proc" value="Preprocesamiento" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="20" y="909" width="120" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="leg-ml" value="Modelo ML" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="20" y="942" width="120" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="leg-opt" value="Grad-CAM (opcional)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=10;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="20" y="975" width="120" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="leg-dec" value="Decisión" style="rhombus;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="20" y="1005" width="120" height="35" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
