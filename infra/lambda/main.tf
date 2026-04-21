@@ -89,8 +89,8 @@ resource "aws_lambda_function" "mnist_api" {
   role          = aws_iam_role.lambda_exec_role.arn
   package_type  = "Image"
   image_uri     = var.lambda_image_uri
-  timeout       = 30
-  memory_size   = 1024
+  timeout       = 60
+  memory_size   = 2048
 }
 
 resource "aws_apigatewayv2_api" "http_api" {
