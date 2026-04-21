@@ -454,11 +454,6 @@ function App() {
           </div>
 
           <div className="toolbar">
-            {!isDataset && (
-              <button className="button primary" onClick={handlePreprocess}>
-                1) Preprocesar
-              </button>
-            )}
             <label htmlFor="labelInput"><strong>Etiqueta:</strong></label>
             <input
               id="labelInput"
@@ -528,6 +523,11 @@ function App() {
             <button className="button ghost" onClick={clearAllInformation}>
               Limpiar todo
             </button>
+            {!isDataset && (
+              <button className="button primary" onClick={handlePreprocess}>
+                1) Preprocesar
+              </button>
+            )}
             <button className="button accent" onClick={handlePredict}>
               Ver resultado
             </button>

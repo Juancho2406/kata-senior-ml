@@ -15,7 +15,10 @@ import numpy as np
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from mangum import Mangum
+try:
+    from mangum import Mangum
+except ImportError:
+    Mangum = None
 from PIL import Image, UnidentifiedImageError
 from pydantic import BaseModel, field_validator
 from tensorflow import keras
@@ -41,6 +44,8 @@ NUM_CLASSES = 10
 # Estado global del modelo
 # ---------------------------------------------------------------------------
 ml_model: keras.Model | None = None
+mnist_test_images: np.ndarray | None = None
+mnist_test_labels: np.ndarray | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -49,7 +54,7 @@ ml_model: keras.Model | None = None
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     del app
-    global ml_model
+    global ml_model, mnist_test_images, mnist_test_labels
     logger.info("Cargando modelo desde %s ...", MODEL_PATH)
     if not os.path.exists(MODEL_PATH):
         raise RuntimeError(
@@ -58,9 +63,20 @@ async def lifespan(app: FastAPI):
         )
     ml_model = keras.models.load_model(MODEL_PATH)
     logger.info("Modelo cargado correctamente. Arquitectura: %s", ml_model.name)
+    try:
+        (_, _), (mnist_test_images, mnist_test_labels) = mnist.load_data()
+        logger.info(
+            "MNIST cargado correctamente. Test samples: %d", len(mnist_test_images)
+        )
+    except Exception as exc:
+        logger.warning("No se pudo cargar MNIST al iniciar: %s", exc)
+        mnist_test_images = None
+        mnist_test_labels = None
     yield
     logger.info("Cerrando la aplicación.")
     ml_model = None
+    mnist_test_images = None
+    mnist_test_labels = None
 
 
 # ---------------------------------------------------------------------------
@@ -344,16 +360,32 @@ def save_labeled_image(request: SaveLabeledImageRequest):
     summary="Obtiene una imagen de ejemplo del test set MNIST",
 )
 def sample_mnist(index: int = 0):
-    (_, _), (x_test, y_test) = mnist.load_data()
-    if index < 0 or index >= len(x_test):
+    global mnist_test_images, mnist_test_labels
+    if mnist_test_images is None or mnist_test_labels is None:
+        try:
+            (_, _), (mnist_test_images, mnist_test_labels) = mnist.load_data()
+        except Exception as exc:
+            logger.error("No se pudo cargar MNIST para /sample-mnist: %s", exc)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=(
+                    "No se pudo cargar el dataset MNIST en este entorno. "
+                    "Verifica conectividad o cache local de Keras."
+                ),
+            ) from exc
+
+    if index < 0 or index >= len(mnist_test_images):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"index fuera de rango. Debe estar entre 0 y {len(x_test)-1}.",
+            detail=(
+                "index fuera de rango. Debe estar entre 0 y "
+                f"{len(mnist_test_images)-1}."
+            ),
         )
-    img_b64 = mnist_image_to_base64(x_test[index])
+    img_b64 = mnist_image_to_base64(mnist_test_images[index])
     return MnistSampleResponse(
         image=img_b64,
-        label=int(y_test[index]),
+        label=int(mnist_test_labels[index]),
         index=index,
     )
 
@@ -434,4 +466,4 @@ async def generic_exception_handler(request, exc):
 
 
 # AWS Lambda entrypoint for API Gateway HTTP API events
-handler = Mangum(app)
+handler = Mangum(app) if Mangum is not None else None

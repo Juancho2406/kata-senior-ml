@@ -128,12 +128,12 @@ Esto asegura que frontend y API no se despliegan antes de tener infraestructura.
 - API Gateway HTTP API integrado a Lambda
 
 ### Requisito para `deploy_api`
-Antes del deploy, el modelo debe existir en:
+Antes del deploy, el modelo debe existir en el bucket de modelos creado por IaC:
 ```bash
-s3://kata-senior-ml-models-<aws-account-id>-<aws-region>/mnist/mnist_cnn.h5
+s3://<nombre-del-bucket-modelos>/mnist/mnist_cnn.h5
 ```
 
-Comando de referencia:
+Comando de referencia (genérico):
 ```bash
-aws s3 cp <ruta-local-del-modelo.h5> s3://kata-senior-ml-models-<aws-account-id>-<aws-region>/mnist/mnist_cnn.h5
+aws s3 cp <ruta-local-del-modelo.h5> s3://<nombre-del-bucket-modelos>/mnist/mnist_cnn.h5
 ```
